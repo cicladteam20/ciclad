@@ -27,82 +27,39 @@ extern size_t numberOfCI;
 
 static uint32_t CID = 1;
 
-
-//on rajoute une ligne de transaction et on compute les nouveaux CI
-void updateCicladAdd(TRANSACTION *current_T, vector<vector<concept*>>*index, vector<concept*>*conceptContainer, vector<set<uint32_t>*>* const _genContainer) {
-
-
-  /*****************************************
-      Creation du Trie d'intersection
-
-   chaque noeud contient :
-      - id qui est l'item du noeud
-      - le geniteur candidat
-      - est pointé par certain CI
-  ******************************************/
-
-
-  //racine de l'arbre
+void updateCicladAdd(TRANSACTION *current_T, vector<vector<concept*>>*index, vector<concept*>*conceptContainer) {
   trie_node_add root;
   root.children = new map<uint32_t, size_t>();
   root.depth = 0;
   root.genitor = NULL;
-  root.item = __maxItem;// ?
+  root.item = __maxItem;
   root.nb_ref = 0;
   root.parent = 0;
   vector<trie_node_add> tnodes;
   tnodes.push_back(root);
-  //on boucle sur les items de la transaction
-  //pour rappel current_T->itemset[0] contient current_T.size()
   for (uint32_t pos = 0; pos < (current_T->itemset[0]); ++pos) {
     const uint32_t item = current_T->itemset[1 + pos];
-
-    //On recupere les CI qui possedent l'item (l'ideal ?)
-      //vector<concept*>* listeCI = &(*index)[item];
-
     for (concept* ci : (*index)[item]) {
       if (!ci) continue;
-
       size_t ref;
-      //on recupere la derniere reference/noeud pour le CI courant
-      // et on met a jour la reference, dernier noeud touché par le CI
-        // et on expandPAth
       if (!ci->lastitem) {
         ref = 0;
       }
       else {
         ref = ci->lastitem;
       }
-      expandPathAdd(item, ref, ci, &tnodes);//on etend les intersections partielles avec l'item courant
+      expandPathAdd(item, ref, ci, &tnodes);
     }
   }
-
-
-  /*******************************************
-
-   Tri entre nouveaux noeuds et noeuds promus
-
-   *******************************************/
-   //boucler sur les noeuds pour creer les nouveaux ou les incrementations de support
   for (size_t i = 1; i < tnodes.size(); ++i) {
     trie_node_add node = tnodes[i];
     if (node.nb_ref != 0) {
       if (node.depth != node.genitor->size) {
-        //Creer le CI
         concept* const newCi = (concept*)malloc(sizeof(concept));
         newCi->size = node.depth;
-        //TODO : newCi.itemset=
         newCi->support = (node.genitor->support) + 1;
-        // le referencer dans l'index
-        //newCi->itemset = trie_path(&tnodes, &node);
-
         std::vector<uint32_t>* const path = trie_path(&tnodes, &node);
-#ifdef STORE_ITEMSET
-        newCi->itemset = path;
-#endif
-
-        newCi->positionsInIndex = (size_t*)malloc(sizeof(size_t) * (/*newCi->itemset*/path->size()));
-
+        newCi->positionsInIndex = (size_t*)malloc(sizeof(size_t) * (path->size()));
 #ifdef REUSE_OBSOLETE
         bool was_incremented = false;
         if (!available_id_for_new_cis->empty()) {
@@ -111,16 +68,14 @@ void updateCicladAdd(TRANSACTION *current_T, vector<vector<concept*>>*index, vec
           newCi->id = oldId;
         }
         else {
-
           newCi->id = CID++;
           was_incremented = true;
         }
 #else
-      newCi->id = CID++;// conceptContainer->size();// (*conceptContainer)[conceptContainer->size() - 1]->id + 1;
+      newCi->id = CID++;
 #endif
-        for (size_t j = 0; j < /*newCi->itemset*/path->size(); ++j) {
-          const uint32_t item = /*newCi->itemset*/path->at(j);
-
+        for (size_t j = 0; j < path->size(); ++j) {
+          const uint32_t item = path->at(j);
 #ifdef REUSE_OBSOLETE
           if (!available_positions_for_new_cis[item]->empty()) {
             const size_t pos = available_positions_for_new_cis[item]->front();
@@ -139,7 +94,7 @@ void updateCicladAdd(TRANSACTION *current_T, vector<vector<concept*>>*index, vec
           newCi->positionsInIndex[j] = len;
 #endif
         }
-
+        delete path;
 #ifdef REUSE_OBSOLETE
         if (was_incremented) {
           conceptContainer->push_back(newCi);
@@ -152,9 +107,6 @@ void updateCicladAdd(TRANSACTION *current_T, vector<vector<concept*>>*index, vec
         conceptContainer->push_back(newCi);
 #endif
         numberOfCI++;
-#ifndef STORE_ITEMSET
-        delete path;
-#endif
       }
       else if (node.genitor) {
         node.genitor->support++;
@@ -174,7 +126,6 @@ void expandPathAdd(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_
 
   size_t ref_tmp_pos;
   if (it == ref->children->end()) {
-    //on ajoute le nouveau noeud, s'il n'existe pas
     trie_node_add fils;
     fils.item = item;
     fils.parent = ref_pos;
@@ -195,11 +146,8 @@ void expandPathAdd(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_
       (*tnodes)[it->second].genitor = ci;
     }
   }
-
-  //nbr refs sert a savoir si il s'agit d'un prefixe correspondant a une intersection valide (si != 0)
   (*tnodes)[ref_pos].nb_ref -= 1;
   //ref->nb_ref -= 1;
   (*tnodes)[ref_tmp_pos].nb_ref += 1;
   ci->lastitem = ref_tmp_pos;
-  //*/
 }

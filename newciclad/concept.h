@@ -28,8 +28,6 @@
 
 struct trie_node_add;
 
-//#define STORE_ITEMSET
-
 #ifdef REUSE_OBSOLETE
   extern std::queue<size_t>* available_id_for_new_cis;
   extern std::queue<size_t>** available_positions_for_new_cis;
@@ -38,11 +36,8 @@ struct trie_node_add;
 typedef struct concept {
   uint32_t id;
   uint32_t support;
-  uint32_t size;//ca pourrait devenir 16
-#ifdef STORE_ITEMSET
-  std::vector<uint32_t>* itemset;//si les items peuvent sur 16 alors uint16 aussi
-#endif
-  size_t lastitem;//reference vers le noeud qui l'a touche en dernier
+  uint32_t size;
+  size_t lastitem;
   size_t* positionsInIndex;
 } CONCEPT;
 

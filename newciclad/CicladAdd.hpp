@@ -27,6 +27,6 @@ using namespace std;
 static size_t trxid = 0;
 
 
-void updateCicladAdd(TRANSACTION *current_T,vector<vector<concept*>>*index, vector<concept*>*conceptContainer, vector<set<uint32_t>*>* const _genContainer);
+void updateCicladAdd(TRANSACTION *current_T,vector<vector<concept*>>*index, vector<concept*>*conceptContainer);
 void expandPathAdd(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_add>* tnodes);
 #endif /* CicladAdd_hpp */

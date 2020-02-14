@@ -23,90 +23,45 @@ extern size_t numberOfCI;
 extern uint32_t __maxItem;
 
 void updateCicladRmv(TRANSACTION *current_T, vector<vector<concept*>>*index, vector<concept*>*conceptContainer) {
-
-  /*****************************************
-   Creation du Trie d'intersection
-
-   chaque noeud contient :
-   - id qui est l'item du noeud
-   - le geniteur candidat
-   - est pointé par certain CI
-   ******************************************/
-
-
-   //racine de l'arbre
   trie_node_rmv root;
   root.children = new map<uint32_t, size_t>();
   root.depth = 0;
   root.genitors = new vector<concept*>();
   root.minimalCandidates = new vector<concept*>();
-  root.item = __maxItem;//est ce important ? peut on mettre iteger max ?
+  root.item = __maxItem;
   root.nb_ref = 0;
   root.parent = 0;
   vector<trie_node_rmv> tnodes;
   tnodes.push_back(root);
-  //on boucle sur les items de la transaction
-  //pour rappel current_T->itemset[0] contient current_T.size()
   for (uint32_t pos = 0; pos < (current_T->itemset[0]); ++pos) {
     uint32_t item = current_T->itemset[1 + pos];
-
-    //On recupere les CI qui possedent l'item (l'ideal ?)
-    //vector<concept*>* listeCI = &(*index)[item];
     for (concept* ci : (*index)[item]) {
       if (!ci) {
         continue;
       }
-#ifdef STORE_ITEMSET
-      if (ci->id && ci->size != ci->itemset->size()) {
-        exit(1);
-      }
-#endif            
       size_t ref;
-      //on recupere la derniere reference/noeud pour le CI courant
-      // et on met a jour la reference, dernier noeud touché par le CI
-      // et on expandPAth
-
-      if (ci->lastitem > tnodes.size()) {
-        cout << "ci->lastitem > tnodes.size()" << endl;
-        exit(1);
-      }
-
       if (!ci->lastitem) {
         ref = 0;
       }
       else {
         ref = ci->lastitem;
       }
-      expandPathRmv(item, ref, ci, &tnodes);//on etend les intersections partielles avec l'item courant
+      expandPathRmv(item, ref, ci, &tnodes);
     }
   }
-
-
-  /**************************************************
-
-   Tri entre obsoletes noeuds et noeuds retrogradés
-
-   **************************************************/
-   //boucler sur les noeuds pour creer les obsoletes ou les decrementations de support
   const size_t tnodes_len = tnodes.size();
   for (size_t i = 1; i < tnodes_len; ++i) {
     trie_node_rmv* const node = &tnodes[i];
     if (node->nb_ref != 0) {
       bool stateModified = true;
       if (node->genitors && !node->genitors->empty()) {
-
         concept** it = &(*(node->genitors->begin()));
         const size_t genLen = node->genitors->size();
         for (int zzz = 0; zzz != genLen; ++zzz) {
           concept* const genitor = *(it + zzz);
 
           if (genitor->lastitem == i) {
-            //degager puis
-            std::vector<uint32_t>* obsolete = trie_path(&tnodes, /*&*/node);
-            if (tnodes[i].minimalCandidates->at(0)->size != obsolete->size()) {
-              cout << "tnodes[i].minimalCandidates->at(0)->size != obsolete->size() : " << tnodes[i].minimalCandidates->at(0)->size << " vs " << obsolete->size() << endl;
-              exit(1);
-            }
+            std::vector<uint32_t>* obsolete = trie_path(&tnodes, node);
             for (size_t j = 0; j < obsolete->size(); ++j) {
               const uint32_t item = obsolete->at(j);
               const size_t position = tnodes[i].minimalCandidates->at(0)->positionsInIndex[j];
@@ -116,15 +71,14 @@ void updateCicladRmv(TRANSACTION *current_T, vector<vector<concept*>>*index, vec
 #endif
             }
             delete obsolete;
-            free(tnodes[i].minimalCandidates->at(0)->positionsInIndex);
-#ifdef STORE_ITEMSET
-            free(tnodes[i].minimalCandidates->at(0)->itemset);
-#endif
-            (*conceptContainer)[tnodes[i].minimalCandidates->at(0)->id] = 0;
+            {
+              free(tnodes[i].minimalCandidates->at(0)->positionsInIndex);
+              free((*conceptContainer)[tnodes[i].minimalCandidates->at(0)->id]);
+              (*conceptContainer)[tnodes[i].minimalCandidates->at(0)->id] = 0;
+            }
 #ifdef REUSE_OBSOLETE
             available_id_for_new_cis->push(tnodes[i].minimalCandidates->at(0)->id);
 #endif
-
             numberOfCI--;
             stateModified = false;
             break;
@@ -134,13 +88,12 @@ void updateCicladRmv(TRANSACTION *current_T, vector<vector<concept*>>*index, vec
 
       if (stateModified) {
         tnodes[i].minimalCandidates->at(0)->support--;
+      }
     }
-  }
     delete tnodes[i].genitors;
     delete tnodes[i].minimalCandidates;
     delete tnodes[i].children;
-}
-
+  }
 
   concept** it = &(*(conceptContainer->begin()));
   const size_t genLen = conceptContainer->size();
@@ -161,7 +114,6 @@ void expandPathRmv(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_
 
   size_t ref_tmp_pos;
   if (it == ref->children->end()) {
-    //on ajoute le nouveau noeud, s'il n'existe pas
     trie_node_rmv fils;
     fils.item = item;
     fils.parent = ref_pos;
@@ -182,6 +134,7 @@ void expandPathRmv(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_
     ref_tmp_pos = it->second;
 
     if (0 == (*tnodes)[ref_tmp_pos].minimalCandidates->size()) {
+
     }
     else {
       const uint32_t right = (*tnodes)[ref_tmp_pos].minimalCandidates->at(0)->support;
@@ -210,8 +163,6 @@ void expandPathRmv(uint32_t item, size_t ref_pos, concept* ci, vector<trie_node_
       }
     }
   }
-
-  //nbr refs sert a savoir si il s'agit d'un prefixe correspondant a une intersection valide (si != 0)
   (*tnodes)[ref_pos].nb_ref -= 1;
   (*tnodes)[ref_tmp_pos].nb_ref += 1;
   ci->lastitem = ref_tmp_pos;

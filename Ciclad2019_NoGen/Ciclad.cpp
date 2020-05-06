@@ -97,6 +97,9 @@ uint32_t start_ciclad(char* const _fileSource, const uint32_t _windowSize, const
     window.push(current);
     updateCicladAdd(&current, &index, &conceptContainer);
     transactionStream.pop();
+    /*if (trxid % 1000 == 0) {
+      std::cout << "(First window) trx " << trxid << std::endl;
+    }*/
     trxid += 1;
   }
   std::cout << conceptContainer.size() << " " << numberOfCI << endl;
@@ -112,8 +115,8 @@ uint32_t start_ciclad(char* const _fileSource, const uint32_t _windowSize, const
 
     transactionStream.pop();
     //TODO: this should be an argument
-    if (trxid % 1000 == 0) {
-      std::cout << "trx " << trxid << std::endl;
+    if (trxid % 10000 == 0) {
+      std::cout << "(Sliding window) trx " << trxid << std::endl;
     }
     trxid += 1;
   }
@@ -134,7 +137,7 @@ uint32_t start_ciclad(char* const _fileSource, const uint32_t _windowSize, const
   free(available_positions_for_new_cis);
 #endif
 
-  std::map<uint32_t, vector<uint32_t>> actual_itemsets;
+  /*std::map<uint32_t, vector<uint32_t>> actual_itemsets;
   std::map<uint32_t, concept*> rebuilt_cis;
   std::map<uint32_t, vector<uint32_t>>::iterator ref_ci;
   for (std::vector<std::vector<concept*>>::iterator iter = index.begin(); iter != index.end(); ++iter) {
@@ -151,7 +154,7 @@ uint32_t start_ciclad(char* const _fileSource, const uint32_t _windowSize, const
         actual_itemsets.emplace(ci->id, first_item);
       }
     }
-  }
+  }*/
 
   /*for (std::map<uint32_t, std::vector<uint32_t>>::iterator iter = actual_itemsets.begin(); iter != actual_itemsets.end(); ++iter) {
     uint32_t cid = iter->first;
